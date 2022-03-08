@@ -155,6 +155,13 @@ class Interval:
     def __pos__(self):
         return self
 
+    def __and__(self, other):
+        left_boundary = max(self.left_boundary, other.left_boundary)
+        right_boundary = min(self.right_boundary, other.right_boundary)
+        if left_boundary > right_boundary:
+            return None
+        return Interval(left_boundary, right_boundary)
+
     def width(self):
         return self.right_boundary - self.left_boundary
 
