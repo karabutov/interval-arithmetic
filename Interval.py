@@ -1,6 +1,5 @@
 from decimal import Decimal
 import decimal
-import random
 
 ZERO = Decimal('0')
 
@@ -55,13 +54,7 @@ class Interval:
 
     def __rsub__(self, other):
         other = to_interval(other)
-        cur_context = decimal.getcontext()
-        decimal.setcontext(self.round_floor_context)
-        left_endpoint = other.left_boundary - self.right_boundary
-        decimal.setcontext(self.round_ceiling_context)
-        right_endpoint = other.right_boundary - self.left_boundary
-        decimal.setcontext(cur_context)
-        return Interval(left_endpoint, right_endpoint)
+        return other.__sub__(self)
 
     def __mul__(self, other):
         other = to_interval(other)
@@ -84,7 +77,7 @@ class Interval:
     def __rmul__(self, other):
         return self.__mul__(other)
 
-    def __truediv__(self, other):
+    def __not_zero_div(self, other):
         other = to_interval(other)
         cur_context = decimal.getcontext()
         decimal.setcontext(self.round_floor_context)
@@ -102,23 +95,40 @@ class Interval:
         decimal.setcontext(cur_context)
         return Interval(left_boundary, right_boundary)
 
+    def __zero_div(self, other):
+        cur_context = decimal.getcontext()
+        if other.left_boundary == 0:
+            decimal.setcontext(self.round_floor_context)
+            left_boundary = min(self.left_boundary / other.right_boundary,
+                                self.right_boundary / other.right_boundary)
+            decimal.setcontext(cur_context)
+            return Interval(left_boundary, "Infinity")
+        elif other.right_boundary == 0:
+            decimal.setcontext(self.round_ceiling_context)
+            right_boundary = max(self.left_boundary / other.left_boundary,
+                                 self.right_boundary / other.left_boundary)
+            decimal.setcontext(cur_context)
+            return Interval("-Infinity", right_boundary)
+        else:
+            decimal.setcontext(self.round_ceiling_context)
+            right_boundary = max(self.left_boundary / other.left_boundary,
+                                 self.right_boundary / other.left_boundary)
+            decimal.setcontext(cur_context)
+            res1 =  Interval("-Infinity", right_boundary)
+            decimal.setcontext(self.round_floor_context)
+            left_boundary = min(self.left_boundary / other.right_boundary,
+                                self.right_boundary / other.right_boundary)
+            res2 = Interval(left_boundary, "Infinity")
+            return res1, res2
+
+    def __truediv__(self, other):
+        if other.__contains__(ZERO):
+            return self.__zero_div(other)
+        return self.__not_zero_div(other)
+
     def __rtruediv__(self, other):
         other = to_interval(other)
-        cur_context = decimal.getcontext()
-        decimal.setcontext(self.round_floor_context)
-        left_possible_boundaries = (other.left_boundary / self.left_boundary,
-                                    other.left_boundary / self.right_boundary,
-                                    other.right_boundary / self.left_boundary,
-                                    other.right_boundary / self.right_boundary)
-        decimal.setcontext(self.round_ceiling_context)
-        right_possible_boundaries = (other.left_boundary / self.left_boundary,
-                                     other.left_boundary / self.right_boundary,
-                                     other.right_boundary / self.left_boundary,
-                                     other.right_boundary / self.right_boundary)
-        left_boundary = min(left_possible_boundaries)
-        right_boundary = max(right_possible_boundaries)
-        decimal.setcontext(cur_context)
-        return Interval(left_boundary, right_boundary)
+        return other.__truediv__(self)
 
     def __lt__(self, other):
         other = to_interval(other)
@@ -153,6 +163,11 @@ class Interval:
 
     def midpoint(self):
         return (self.left_boundary + self.right_boundary) / 2
+
+    def __contains__(self, item):
+        if self.left_boundary <= item <= self.right_boundary:
+            return True
+        return False
 
     def get_endpoints_with_accuracy(self, accuracy):
         cur_prec = decimal.getcontext().prec
@@ -192,27 +207,3 @@ def to_interval(value, right_endpoint=None):
     else:
         raise ValueError('Could not convert ' + str(value) + 'to Interval')
     return interval
-
-
-ctx1 = decimal.Context(prec=2, rounding=decimal.ROUND_FLOOR)
-ctx2 = decimal.Context(prec=2, rounding=decimal.ROUND_CEILING)
-op1 = Decimal("1")
-op2 = Decimal("3")
-decimal.setcontext(ctx1)
-res1 = Decimal(op1 / op2 + 1)
-
-decimal.setcontext(ctx2)
-res2 = Decimal(op1 / op2)
-
-op1 = Decimal(0.24)
-op2 = Decimal(0.99)
-
-decimal.setcontext(ctx1)
-res1 = op1 * op2
-decimal.setcontext(ctx2)
-res2 = op1 * op2
-
-i = Interval('1.9999999', '2.1111111')
-print(3 + i)
-round(i, 3)
-print(3 + i)
