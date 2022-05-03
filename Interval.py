@@ -77,6 +77,28 @@ class Interval:
     def __rmul__(self, other):
         return self.__mul__(other)
 
+    def __pow__(self, other):
+        if not isinstance(other, Interval):
+            other = Decimal(other)
+            cur_context = decimal.getcontext()
+            decimal.setcontext(self.round_floor_context)
+            left_possible_boundaries = [self.left_boundary**other, self.right_boundary**other]
+            decimal.setcontext(self.round_ceiling_context)
+            right_possible_boundaries = [self.left_boundary**other, self.right_boundary**other]
+            if self.__contains__(ZERO):
+                left_possible_boundaries.append(ZERO)
+            left_boundary = min(left_possible_boundaries)
+            right_boundary = max(right_possible_boundaries)
+            decimal.setcontext(cur_context)
+            return Interval(left_boundary, right_boundary)
+        else:
+            raise ValueError()
+            # l = ln(self)
+            # m = l * other
+            # res = exp(m)
+            # return res
+
+
     def __not_zero_div(self, other):
         other = to_interval(other)
         cur_context = decimal.getcontext()
@@ -122,6 +144,7 @@ class Interval:
             return res1, res2
 
     def __truediv__(self, other):
+        other = to_interval(other)
         if other.__contains__(ZERO):
             return self.__zero_div(other)
         return self.__not_zero_div(other)
@@ -136,7 +159,7 @@ class Interval:
 
     def __gt__(self, other):
         other = to_interval(other)
-        return self.right_boundary > other.left_boundary
+        return self.left_boundary > other.right_boundary
 
     def __eq__(self, other):
         other = to_interval(other)
@@ -160,6 +183,14 @@ class Interval:
         right_boundary = min(self.right_boundary, other.right_boundary)
         if left_boundary > right_boundary:
             return None
+        return Interval(left_boundary, right_boundary)
+
+    def __abs__(self):
+        possible_boundaries = [abs(self.left_boundary), abs(self.right_boundary)]
+        if self.__contains__(ZERO):
+            possible_boundaries.append(ZERO)
+        left_boundary = min(possible_boundaries)
+        right_boundary = max(possible_boundaries)
         return Interval(left_boundary, right_boundary)
 
     def width(self):
@@ -214,3 +245,65 @@ def to_interval(value, right_endpoint=None):
     else:
         raise ValueError('Could not convert ' + str(value) + 'to Interval')
     return interval
+
+
+def exp(x):
+    x = to_interval(x)
+    cur_context = decimal.getcontext()
+    decimal.setcontext(Interval.round_floor_context)
+    left_possible_boundaries = [x.left_boundary.exp(), x.right_boundary.exp()]
+    decimal.setcontext(Interval.round_ceiling_context)
+    right_possible_boundaries = [x.left_boundary.exp(), x.right_boundary.exp()]
+    left_boundary = min(left_possible_boundaries)
+    right_boundary = max(right_possible_boundaries)
+    decimal.setcontext(cur_context)
+    return Interval(left_boundary, right_boundary)
+
+
+def ln(x):
+    x = to_interval(x)
+    if not (x > 0):
+        raise ValueError("x = " + str(x) + " but must be > 0")
+    cur_context = decimal.getcontext()
+    decimal.setcontext(Interval.round_floor_context)
+    left_possible_boundaries = [x.left_boundary.ln(), x.right_boundary.ln()]
+    decimal.setcontext(Interval.round_ceiling_context)
+    right_possible_boundaries = [x.left_boundary.ln(), x.right_boundary.ln()]
+    left_boundary = min(left_possible_boundaries)
+    right_boundary = max(right_possible_boundaries)
+    decimal.setcontext(cur_context)
+    return Interval(left_boundary, right_boundary)
+
+
+def pow(x, y):
+    if not isinstance(x, Interval) and isinstance(y, Interval):
+        x = Decimal(x)
+        if x < 0:
+            raise ValueError('x = ' + str(x) + 'but must be > 0')
+        cur_context = decimal.getcontext()
+        decimal.setcontext(Interval.round_floor_context)
+        left_possible_boundaries = [x**y.left_boundary, x**y.right_boundary]
+        decimal.setcontext(Interval.round_ceiling_context)
+        right_possible_boundaries = [x**y.left_boundary, x**y.right_boundary]
+        left_boundary = min(left_possible_boundaries)
+        right_boundary = max(right_possible_boundaries)
+        decimal.setcontext(cur_context)
+        return Interval(left_boundary, right_boundary)
+
+    else:
+        return x**y
+
+
+def log(a, x):
+    if not isinstance(a, Interval) and isinstance(x, Interval):
+        a = Decimal(a)
+        lna_inverse = Decimal(1) / a.ln()
+        lnx = ln(x)
+        return lnx * lna_inverse
+    else:
+        raise ValueError()
+
+
+a = to_interval(Decimal(1) / Decimal(25), Decimal(1) / Decimal(125))
+print(log(Decimal(1)/Decimal(5), a))
+#print(ln(a))
