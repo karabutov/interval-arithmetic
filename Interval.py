@@ -98,7 +98,6 @@ class Interval:
             # res = exp(m)
             # return res
 
-
     def __not_zero_div(self, other):
         other = to_interval(other)
         cur_context = decimal.getcontext()
@@ -202,6 +201,9 @@ class Interval:
     def midpoint(self):
         return (self.left_boundary + self.right_boundary) / 2
 
+    def radius(self):
+        return (self.right_boundary - self.left_boundary) / 2
+
     def __contains__(self, item):
         if self.left_boundary <= item <= self.right_boundary:
             return True
@@ -225,6 +227,7 @@ class Interval:
 
     @staticmethod
     def set_prec(value):
+        value = Decimal(value)
         Interval.prec = value
         Interval.round_floor_context.prec = value
         Interval.round_ceiling_context.prec = value
@@ -302,8 +305,3 @@ def log(a, x):
         return lnx * lna_inverse
     else:
         raise ValueError()
-
-
-a = to_interval(Decimal(1) / Decimal(25), Decimal(1) / Decimal(125))
-print(log(Decimal(1)/Decimal(5), a))
-#print(ln(a))
