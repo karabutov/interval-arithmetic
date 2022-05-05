@@ -1,8 +1,9 @@
 from decimal import Decimal
 import decimal
+import math
 
 ZERO = Decimal('0')
-
+pi = Decimal('3.141592653589793')
 
 class Interval:
 
@@ -225,6 +226,17 @@ class Interval:
 
         return left_endpoint, right_endpoint
 
+    def add_to_bounds(self, left, right):
+        left = Decimal(left)
+        right = Decimal(right)
+        cur_context = decimal.getcontext()
+        decimal.setcontext(self.round_floor_context)
+        self.left_boundary += left
+        decimal.setcontext(self.round_ceiling_context)
+        self.right_boundary += right
+        decimal.setcontext(cur_context)
+        return self
+
     @staticmethod
     def set_prec(value):
         value = Decimal(value)
@@ -305,3 +317,47 @@ def log(a, x):
         return lnx * lna_inverse
     else:
         raise ValueError()
+
+
+def sin(x):
+    x = to_interval(x)
+    cur_context = decimal.getcontext()
+    decimal.setcontext(Interval.round_floor_context)
+    left_possible_boundaries = [math.sin(x.left_boundary), math.sin(x.right_boundary)]
+    decimal.setcontext(Interval.round_ceiling_context)
+    right_possible_boundaries = [math.sin(x.left_boundary), math.sin(x.right_boundary)]
+    decimal.setcontext(cur_context)
+    pi2 = 2 * pi
+    pi05 = pi / 2
+    if math.ceil((x.left_boundary - pi05)/pi2) <= math.floor((x.right_boundary - pi05)/pi2):
+        right_boundary = 1
+    else:
+        right_boundary = max(right_possible_boundaries)
+
+    if math.ceil((x.left_boundary + pi05)/pi2) <= math.floor((x.right_boundary + pi05)/pi2):
+        left_boundary = -1
+    else:
+        left_boundary = min(left_possible_boundaries)
+    return Interval(left_boundary, right_boundary)
+
+
+def cos(x):
+    x = to_interval(x)
+    cur_context = decimal.getcontext()
+    decimal.setcontext(Interval.round_floor_context)
+    left_possible_boundaries = [math.cos(x.left_boundary), math.cos(x.right_boundary)]
+    decimal.setcontext(Interval.round_ceiling_context)
+    right_possible_boundaries = [math.cos(x.left_boundary), math.cos(x.right_boundary)]
+    decimal.setcontext(cur_context)
+    pi2 = 2 * pi
+    if math.ceil(x.left_boundary/pi2) <= math.floor(x.right_boundary/pi2):
+        right_boundary = 1
+    else:
+        right_boundary = max(right_possible_boundaries)
+    if math.ceil((x.left_boundary - pi)/pi2) <= math.floor((x.right_boundary - pi)/pi2):
+        left_boundary = -1
+    else:
+        left_boundary = min(left_possible_boundaries)
+    return Interval(left_boundary, right_boundary)
+
+
